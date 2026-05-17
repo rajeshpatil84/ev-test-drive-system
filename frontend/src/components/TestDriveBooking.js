@@ -18,6 +18,7 @@ const TestDriveBooking = ({ vehicleType = 'tesla_model3', location = 'dublin', a
   const [message, setMessage] = useState({ type: '', text: '' });
   const [bookingStep, setBookingStep] = useState('availability'); // 'availability' or 'booking'
 
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData({
@@ -50,7 +51,10 @@ const TestDriveBooking = ({ vehicleType = 'tesla_model3', location = 'dublin', a
       if (response.data.success) {
         setAvailableVehicles(response.data.data.availableVehicles);
         if (response.data.data.availableVehicles.length === 0) {
-          setMessage({ type: 'info', text: 'No vehicles available for the selected date and time. Please try another time.' });
+          setMessage({ 
+            type: 'info', 
+            text: 'No vehicles available. Vehicle of the given type must be available on the requested day at the requested location. Please try another date or time.' 
+          });
         } else {
           setMessage({ type: 'success', text: `Found ${response.data.data.availableVehicles.length} available vehicle(s)!` });
           setSelectedVehicleId(response.data.data.availableVehicles[0].id);
@@ -175,14 +179,17 @@ const TestDriveBooking = ({ vehicleType = 'tesla_model3', location = 'dublin', a
             <h2>Step 2: Complete Your Booking</h2>
 
             <div className="vehicle-selection">
-              <label>Selected Vehicle</label>
+              <label>Available Vehicles</label>
+              <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: '0 0 8px 0' }}>
+                Vehicle of the given type must be available on the requested day at the requested location
+              </p>
               <select
                 value={selectedVehicleId || ''}
                 onChange={(e) => setSelectedVehicleId(e.target.value)}
               >
                 {availableVehicles.map((vehicle) => (
                   <option key={vehicle.id} value={vehicle.id}>
-                    {vehicle.type} (ID: {vehicle.id})
+                    {vehicle.type} - {vehicle.location.toUpperCase()} (ID: {vehicle.id})
                   </option>
                 ))}
               </select>
