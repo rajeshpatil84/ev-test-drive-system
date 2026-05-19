@@ -1,0 +1,23 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy and install backend dependencies
+COPY backend/package*.json ./
+RUN npm install
+
+# Copy backend source code
+COPY backend/ .
+
+# Create data directory if it doesn't exist
+RUN mkdir -p data
+
+# Expose backend port
+EXPOSE 5000
+
+# Set NODE_ENV to production
+ENV NODE_ENV=production
+ENV PORT=5000
+
+# Start the backend server
+CMD ["npm", "start"]

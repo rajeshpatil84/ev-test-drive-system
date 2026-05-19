@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import moment from 'moment';
 import './TestDriveBooking.css';
@@ -18,6 +18,17 @@ const TestDriveBooking = ({ vehicleType = 'tesla_model3', location = 'dublin', a
   const [message, setMessage] = useState({ type: '', text: '' });
   const [bookingStep, setBookingStep] = useState('availability'); // 'availability' or 'booking'
 
+  // Generate date options (next 14 days)
+  const generateDateOptions = () => {
+    const dates = [];
+    const today = moment.utc();
+    for (let i = 0; i < 14; i++) {
+      dates.push(today.clone().add(i, 'days'));
+    }
+    return dates;
+  };
+
+  const dateOptions = generateDateOptions();
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;

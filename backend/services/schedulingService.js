@@ -1,6 +1,7 @@
 const moment = require('moment');
-const { readJSON, writeJSON } = require('../utils/dataStore');
 const { v4: uuidv4 } = require('uuid');
+const Vehicle = require('../models/Vehicle');
+const Reservation = require('../models/Reservation');
 
 const DAYS_MAPPING = {
   0: 'sun',
@@ -20,45 +21,74 @@ const DAYS_MAPPING = {
  * @param {number} durationMins - Duration in minutes
  * @returns {Array} List of available vehicles
  */
-const getAvailableVehicles = (vehicleType, location, startDateTime, durationMins) => {
-  const vehicles = readJSON('vehicles.json');
-  const reservations = readJSON('reservations.json');
+const getAvailableVehicles = async (vehicleType, location, startDateTime, durationMins) => {
+  try {
+    const startMoment = moment.utc(startDateTime);
+    const endMoment = moment.utc(startDateTime).add(durationMins, 'minutes');
+    const dayOfWeek = DAYS_MAPPING[startMoment.day()];
 
-  if (!vehicles || !vehicles.vehicles) return [];
+    // Find vehicles matching type and location
+    const matchingVehicles = await Vehicle.find({
+      type: vehicleType,
+      location: location.toLowerCase(),
+      isActive: true
+    });
 
-  const startMoment = moment.utc(startDateTime);
-  const endMoment = moment.utc(startDateTime).add(durationMins, 'minutes');
-  const dayOfWeek = DAYS_MAPPING[startMoment.day()];
+    const availableVehicles = [];
 
-  // Filter vehicles by type and location
-  const matchingVehicles = vehicles.vehicles.filter(
-    (v) => v.type === vehicleType && v.location.toLowerCase() === location.toLowerCase()
-  );
+    for (const vehicle of matchingVehicles) {
+      // Check if day is available
+      if (!vehicle.availableDays.includes(dayOfWeek)) {
+        continue;
+      }
 
-  // Further filter by availability constraints
-  const availableVehicles = matchingVehicles.filter((vehicle) => {
-    // Check if day is available
-    if (!vehicle.availableDays.includes(dayOfWeek)) {
-      return false;
+      // Check if time is within operating hours
+      const availableFrom = moment.utc(
+        startMoment.format('YYYY-MM-DD') + ' ' + vehicle.availableFromTime
+      );
+      const availableTo = moment.utc(
+        startMoment.format('YYYY-MM-DD') + ' ' + vehicle.availableToTime
+      );
+
+      if (startMoment.isBefore(availableFrom) || endMoment.isAfter(availableTo)) {
+        continue;
+      }
+
+      // Check for existing reservations
+      const conflictingReservations = await Reservation.find({
+        vehicleId: vehicle.id,
+        status: 'confirmed',
+        $or: [
+          {
+            startDateTime: { $lt: endMoment.toDate() },
+            endDateTime: { $gt: startMoment.toDate() }
+          }
+        ]
+      });
+
+      // Check buffer time
+      let hasConflict = false;
+      for (const res of conflictingReservations) {
+        if (hasTimeConflict(res, startMoment, endMoment, vehicle.minimumMinutesBetweenBookings)) {
+          hasConflict = true;
+          break;
+        }
+      }
+
+      if (!hasConflict) {
+        availableVehicles.push({
+          id: vehicle.id,
+          type: vehicle.type,
+          location: vehicle.location
+        });
+      }
     }
 
-    // Check if time is within operating hours
-    const availableFrom = moment.utc(startMoment.format('YYYY-MM-DD') + ' ' + vehicle.availableFromTime);
-    const availableTo = moment.utc(startMoment.format('YYYY-MM-DD') + ' ' + vehicle.availableToTime);
-
-    if (startMoment.isBefore(availableFrom) || endMoment.isAfter(availableTo)) {
-      return false;
-    }
-
-    // Check for existing reservations
-    const conflictingReservations = reservations.reservations.filter(
-      (res) => res.vehicleId === vehicle.id && hasTimeConflict(res, startMoment, endMoment, vehicle.minimumMinutesBetweenBookings)
-    );
-
-    return conflictingReservations.length === 0;
-  });
-
-  return availableVehicles;
+    return availableVehicles;
+  } catch (error) {
+    console.error('Error in getAvailableVehicles:', error);
+    throw error;
+  }
 };
 
 /**
@@ -86,68 +116,87 @@ const hasTimeConflict = (reservation, requestStart, requestEnd, bufferMins) => {
  * @param {object} bookingData - Booking data
  * @returns {object} Result with success status and reservation details
  */
-const scheduleTestDrive = (bookingData) => {
-  const {
-    vehicleId,
-    startDateTime,
-    durationMins,
-    customerName,
-    customerPhone,
-    customerEmail
-  } = bookingData;
+const scheduleTestDrive = async (bookingData) => {
+  try {
+    const {
+      vehicleId,
+      startDateTime,
+      durationMins,
+      customerName,
+      customerPhone,
+      customerEmail
+    } = bookingData;
 
-  // Validate inputs
-  if (!vehicleId || !startDateTime || !durationMins || !customerName || !customerPhone || !customerEmail) {
+    // Validate inputs
+    if (!vehicleId || !startDateTime || !durationMins || !customerName || !customerPhone || !customerEmail) {
+      return {
+        success: false,
+        message: 'Missing required fields'
+      };
+    }
+
+    // Find vehicle
+    const vehicle = await Vehicle.findOne({ id: vehicleId, isActive: true });
+    if (!vehicle) {
+      return {
+        success: false,
+        message: 'Vehicle not found'
+      };
+    }
+
+    const startMoment = moment.utc(startDateTime);
+    const endMoment = startMoment.clone().add(durationMins, 'minutes');
+
+    // Validate availability
+    const availableVehicles = await getAvailableVehicles(
+      vehicle.type,
+      vehicle.location,
+      startDateTime,
+      durationMins
+    );
+
+    if (!availableVehicles.find((v) => v.id === vehicleId)) {
+      return {
+        success: false,
+        message: 'Vehicle is not available for the requested time slot'
+      };
+    }
+
+    // Create reservation
+    const reservationId = uuidv4();
+    const newReservation = new Reservation({
+      id: reservationId,
+      vehicleId,
+      startDateTime: startMoment.toDate(),
+      endDateTime: endMoment.toDate(),
+      customerName,
+      customerEmail: customerEmail.toLowerCase(),
+      customerPhone,
+      bookingDate: moment.utc().toDate(),
+      status: 'confirmed'
+    });
+
+    await newReservation.save();
+
     return {
-      success: false,
-      message: 'Missing required fields'
+      success: true,
+      message: 'Test drive scheduled successfully',
+      reservation: {
+        id: newReservation.id,
+        vehicleId: newReservation.vehicleId,
+        startDateTime: newReservation.startDateTime.toISOString(),
+        endDateTime: newReservation.endDateTime.toISOString(),
+        customerName: newReservation.customerName,
+        customerEmail: newReservation.customerEmail,
+        customerPhone: newReservation.customerPhone,
+        bookingDate: newReservation.bookingDate.toISOString(),
+        status: newReservation.status
+      }
     };
+  } catch (error) {
+    console.error('Error in scheduleTestDrive:', error);
+    throw error;
   }
-
-  const vehicles = readJSON('vehicles.json');
-  const reservations = readJSON('reservations.json');
-
-  // Find vehicle
-  const vehicle = vehicles.vehicles.find((v) => v.id === vehicleId);
-  if (!vehicle) {
-    return {
-      success: false,
-      message: 'Vehicle not found'
-    };
-  }
-
-  const startMoment = moment.utc(startDateTime);
-  const endMoment = startMoment.clone().add(durationMins, 'minutes');
-
-  // Validate availability
-  const availableVehicles = getAvailableVehicles(vehicle.type, vehicle.location, startDateTime, durationMins);
-  if (!availableVehicles.find((v) => v.id === vehicleId)) {
-    return {
-      success: false,
-      message: 'Vehicle is not available for the requested time slot'
-    };
-  }
-
-  // Create reservation
-  const newReservation = {
-    id: uuidv4(),
-    vehicleId,
-    startDateTime: startMoment.toISOString(),
-    endDateTime: endMoment.toISOString(),
-    customerName,
-    customerEmail: customerEmail.toLowerCase(),
-    customerPhone,
-    bookingDate: moment.utc().toISOString()
-  };
-
-  reservations.reservations.push(newReservation);
-  writeJSON('reservations.json', reservations);
-
-  return {
-    success: true,
-    message: 'Test drive scheduled successfully',
-    reservation: newReservation
-  };
 };
 
 /**
@@ -155,14 +204,65 @@ const scheduleTestDrive = (bookingData) => {
  * @param {string} vehicleId - Vehicle ID
  * @returns {Array} List of reservations
  */
-const getVehicleReservations = (vehicleId) => {
-  const reservations = readJSON('reservations.json');
-  if (!reservations) return [];
-  return reservations.reservations.filter((res) => res.vehicleId === vehicleId);
+const getVehicleReservations = async (vehicleId) => {
+  try {
+    const reservations = await Reservation.find(
+      { vehicleId, status: 'confirmed' },
+      null,
+      { sort: { startDateTime: 1 } }
+    );
+
+    return reservations.map((res) => ({
+      id: res.id,
+      vehicleId: res.vehicleId,
+      startDateTime: res.startDateTime.toISOString(),
+      endDateTime: res.endDateTime.toISOString(),
+      customerName: res.customerName,
+      customerEmail: res.customerEmail,
+      customerPhone: res.customerPhone,
+      bookingDate: res.bookingDate.toISOString(),
+      status: res.status
+    }));
+  } catch (error) {
+    console.error('Error in getVehicleReservations:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get all vehicles (for admin purposes)
+ * @returns {Array} List of all vehicles
+ */
+const getAllVehicles = async () => {
+  try {
+    const vehicles = await Vehicle.find({ isActive: true });
+    return vehicles;
+  } catch (error) {
+    console.error('Error in getAllVehicles:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get vehicle by ID
+ * @param {string} vehicleId - Vehicle ID
+ * @returns {object} Vehicle details
+ */
+const getVehicleById = async (vehicleId) => {
+  try {
+    const vehicle = await Vehicle.findOne({ id: vehicleId, isActive: true });
+    return vehicle;
+  } catch (error) {
+    console.error('Error in getVehicleById:', error);
+    throw error;
+  }
 };
 
 module.exports = {
   getAvailableVehicles,
   scheduleTestDrive,
-  getVehicleReservations
+  getVehicleReservations,
+  getAllVehicles,
+  getVehicleById
 };
+
