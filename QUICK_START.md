@@ -56,8 +56,8 @@ npm start
 You should see:
 ```
 ✅ MongoDB Connected: mongodb://localhost:27017/ev-test-drive
-📦 Seeding vehicles...
-✅ Vehicles seeded successfully
+📦 Upserting vehicles...
+✅ Vehicles upserted (12 vehicles ensured)
 ✅ Server is running on http://localhost:5000
 ```
 
@@ -99,10 +99,10 @@ Open http://localhost:3000 in browser
 
 1. Select a date/time within next 14 days
 2. Choose duration (30 min to 2 hours)
-3. Click "Check Availability"
-4. See available vehicles (now with location)
-5. Enter your details
-6. Click "Confirm Booking"
+3. Click **Check Availability**
+4. The system auto-assigns the least-booked available vehicle
+5. Enter your name, phone, and email
+6. Click **Confirm Booking**
 7. See success message with booking ID
 
 ---

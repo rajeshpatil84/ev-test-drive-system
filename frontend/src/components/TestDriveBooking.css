@@ -135,11 +135,14 @@
   font-style: italic;
 }
 
-.vehicle-selection select {
+.assigned-vehicle-info {
   padding: 10px 12px;
-  border: 1px solid #ddd;
+  background: white;
+  border: 1px solid #c3cfe2;
   border-radius: 6px;
   font-size: 14px;
+  font-weight: 500;
+  color: #333;
 }
 
 /* Booking Summary */

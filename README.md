@@ -39,15 +39,16 @@ ev-test-drive-service/
 └── .gitignore
 ```
 
-## Key Improvements with MongoDB
+## Key Features
 
+✅ **Even Distribution** - Bookings are automatically distributed across available vehicles; the least-booked vehicle is always assigned first
+✅ **14-Day Booking Window** - Enforced on both the availability check and booking creation endpoints
 ✅ **Persistent Data Storage** - Data survives server restarts
 ✅ **Scalability** - Handle thousands of bookings efficiently
 ✅ **Query Flexibility** - Complex queries on vehicle and reservation data
 ✅ **Indexes** - Optimized performance for common queries
 ✅ **Cloud Ready** - Easy deployment to MongoDB Atlas
 ✅ **Schema Validation** - Data integrity with Mongoose schemas
-✅ **Full CRUD Operations** - Complete data management
 
 ## Features
 
@@ -67,20 +68,19 @@ Query Parameters:
 {
   "success": true,
   "data": {
-    "requestedVehicleType": "tesla_model3",
+    "requestedVehicleType": "volkswagen_id4",
     "location": "dublin",
     "startDateTime": "2023-11-01T09:00:00Z",
     "durationMins": 45,
     "availableVehicles": [
-      {
-        "id": "tesla_1001",
-        "type": "tesla_model3",
-        "location": "dublin"
-      }
+      { "id": "vw_2002", "type": "volkswagen_id4", "location": "dublin" },
+      { "id": "vw_2001", "type": "volkswagen_id4", "location": "dublin" }
     ]
   }
 }
 ```
+
+> Vehicles are returned **sorted by total booking count ascending** so the least-booked vehicle is always first. The frontend auto-assigns this vehicle — no manual selection required.
 
 #### 2. Schedule a Test Drive
 **Endpoint:** `POST /api/bookings`
@@ -88,7 +88,7 @@ Query Parameters:
 Request Body:
 ```json
 {
-  "vehicleId": "tesla_1001",
+  "vehicleId": "vw_2001",
   "startDateTime": "2023-11-01T09:00:00Z",
   "durationMins": 45,
   "customerName": "John Smith",
@@ -96,6 +96,8 @@ Request Body:
   "customerEmail": "john@smith.com"
 }
 ```
+
+> `vehicleId` is provided by the availability check response. The frontend auto-selects the least-booked vehicle from that list.
 
 #### 3. Get Vehicle Bookings
 **Endpoint:** `GET /api/bookings/:vehicleId`
@@ -105,13 +107,12 @@ Request Body:
 
 ### Frontend Features
 
-- **Intuitive Booking Interface**: Two-step booking process
-- **Dynamic Vehicle Selection**: Automatically selects available vehicles
-- **14-Day Booking Window**: Users can book up to 14 days in advance
-- **Configurable Vehicle Type & Location**: Component props allow customization
+- **Intuitive Booking Interface**: Two-step booking process (check availability → confirm details)
+- **Auto-Assigned Vehicle**: The system automatically selects the least-booked available vehicle — users never need to pick a specific vehicle ID
+- **14-Day Booking Window**: Users can book up to 14 days in advance (enforced client- and server-side)
+- **Configurable Vehicle Type & Location**: Set via component props at embed time; users don't select the vehicle type
 - **Real-time Validation**: Client and server-side validation
 - **Responsive Design**: Works on desktop and mobile devices
-- **Detailed Availability Messages**: Tells users why vehicles aren't available
 
 ## Setup Instructions
 
@@ -247,17 +248,17 @@ Expected Response:
 }
 ```
 
-2. **Check Availability:**
+2. **Check Availability (returns vehicles sorted by booking count — least booked first):**
 ```bash
-curl "http://localhost:5000/api/availability?vehicleType=tesla_model3&location=dublin&startDateTime=2023-11-01T09:00:00Z&durationMins=45"
+curl "http://localhost:5000/api/availability?vehicleType=volkswagen_id4&location=dublin&startDateTime=2023-11-01T09:00:00Z&durationMins=45"
 ```
 
-3. **Make a Booking:**
+3. **Make a Booking (use the first vehicleId from the availability response):**
 ```bash
 curl -X POST http://localhost:5000/api/bookings \
   -H "Content-Type: application/json" \
   -d '{
-    "vehicleId": "tesla_1001",
+    "vehicleId": "vw_2001",
     "startDateTime": "2023-11-01T09:00:00Z",
     "durationMins": 45,
     "customerName": "Jane Doe",
@@ -270,10 +271,10 @@ curl -X POST http://localhost:5000/api/bookings \
 
 1. Open http://localhost:3000
 2. Select date and time within next 14 days
-3. Check availability
-4. Review available vehicles (now shows location)
-5. Enter customer details
-6. Confirm booking
+3. Choose duration and click **Check Availability**
+4. The system auto-assigns the least-booked available vehicle
+5. Enter customer name, phone, and email
+6. Click **Confirm Booking**
 7. See success message with booking ID
 
 ### Phase 3: Database Verification
@@ -311,29 +312,40 @@ db.reservations.find({customerEmail: "jane@example.com"}).pretty()
 - Booking day must be in the vehicle's available days list
 - No conflicts with existing reservations
 - Minimum 15-minute buffer between bookings
+- Results sorted by total booking count ascending (even distribution — least-booked vehicle is first)
 
 ### Booking Constraints
 - All required fields must be provided
 - Email must be a valid format
 - Vehicle must be available for the requested time
-- Start time must be in the future
+- Booking date must be within the next 14 days (enforced server-side on this endpoint too)
 - Duration must be positive
 
 ## Vehicle Inventory
 
-The system includes 6 Tesla vehicles:
+The system includes 12 vehicles across two locations. Multiple units of the same type at the same location enable even distribution of bookings.
 
 **Dublin:**
-- tesla_1001: Tesla Model 3 (08:00-18:00, Mon-Fri)
-- tesla_1002: Tesla Model X (10:00-20:00, Mon-Sat)
-- tesla_1003: Tesla Model Y (10:00-16:00, Fri-Sun)
+| ID | Type | Hours | Days |
+|---|---|---|---|
+| tesla_1001 | Tesla Model 3 | 08:00–18:00 | Mon–Fri |
+| tesla_1007 | Tesla Model 3 | 08:00–18:00 | Mon–Fri |
+| tesla_1002 | Tesla Model X | 10:00–20:00 | Mon–Sat |
+| tesla_1003 | Tesla Model Y | 10:00–16:00 | Fri–Sun |
+| vw_2001 | Volkswagen ID4 | 09:00–18:00 | Mon–Sat |
+| vw_2002 | Volkswagen ID4 | 09:00–18:00 | Mon–Sat |
 
 **Cork:**
-- tesla_1004: Tesla Model 3 (08:00-18:00, Mon-Fri)
-- tesla_1005: Tesla Model X (10:00-20:00, Mon-Sat)
-- tesla_1006: Tesla Model Y (10:00-16:00, Fri-Sun)
+| ID | Type | Hours | Days |
+|---|---|---|---|
+| tesla_1004 | Tesla Model 3 | 08:00–18:00 | Mon–Fri |
+| tesla_1008 | Tesla Model 3 | 08:00–18:00 | Mon–Fri |
+| tesla_1005 | Tesla Model X | 10:00–20:00 | Mon–Sat |
+| tesla_1006 | Tesla Model Y | 10:00–16:00 | Fri–Sun |
+| vw_2003 | Volkswagen ID4 | 09:00–18:00 | Mon–Sat |
+| vw_2004 | Volkswagen ID4 | 09:00–18:00 | Mon–Sat |
 
-All vehicles are automatically seeded into MongoDB on first run.
+All vehicles are upserted into MongoDB on every server start (safe to run repeatedly — existing records are not overwritten).
 
 ## Database Schemas
 
@@ -379,21 +391,31 @@ All data is stored in MongoDB with automatic persistence:
 - **Transactions**: Ensure data consistency
 - **Replication**: Data reliability (MongoDB Atlas)
 
-Data is automatically seeded on first run with:
-- 6 Tesla vehicles across 2 locations
+Vehicles are upserted on every server start (idempotent). Sample reservations are inserted only if the reservations collection is empty:
+- 12 vehicles across 2 locations (Tesla Model 3 × 2, Model X, Model Y, Volkswagen ID4 × 2 — per location)
 - 3 sample reservations for testing
 
 ## Customizing the Frontend Component
 
-The `TestDriveBooking` component accepts props:
+The `TestDriveBooking` component accepts props to configure the vehicle type and location at embed time — users never need to select these themselves:
 
 ```jsx
+// Embed for Volkswagen ID4 test drives in Dublin
 <TestDriveBooking 
-  vehicleType="tesla_modelx"     // Default vehicle type
-  location="cork"                 // Default location
-  apiBaseUrl="http://api.example.com:5000"  // API endpoint
+  vehicleType="volkswagen_id4"
+  location="dublin"
+  apiBaseUrl="http://api.example.com:5000"
+/>
+
+// Embed for Tesla Model X test drives in Cork
+<TestDriveBooking 
+  vehicleType="tesla_modelx"
+  location="cork"
+  apiBaseUrl="http://api.example.com:5000"
 />
 ```
+
+The component automatically assigns the least-booked available vehicle — no vehicle ID selection is shown to the user.
 
 ## Environment Variables
 
@@ -512,7 +534,7 @@ MIT
 
 ## Version
 
-- **Version**: 2.0.0
+- **Version**: 2.1.0
 - **Database**: MongoDB with Mongoose
 - **Status**: Production Ready
-- **Last Updated**: May 17, 2026
+- **Last Updated**: May 25, 2026

@@ -190,20 +190,17 @@ const TestDriveBooking = ({ vehicleType = 'tesla_model3', location = 'dublin', a
             <h2>Step 2: Complete Your Booking</h2>
 
             <div className="vehicle-selection">
-              <label>Available Vehicles</label>
+              <label>Assigned Vehicle</label>
               <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: '0 0 8px 0' }}>
-                Vehicle of the given type must be available on the requested day at the requested location
+                A vehicle has been automatically assigned to ensure even distribution across our fleet.
               </p>
-              <select
-                value={selectedVehicleId || ''}
-                onChange={(e) => setSelectedVehicleId(e.target.value)}
-              >
-                {availableVehicles.map((vehicle) => (
-                  <option key={vehicle.id} value={vehicle.id}>
-                    {vehicle.type} - {vehicle.location.toUpperCase()} (ID: {vehicle.id})
-                  </option>
-                ))}
-              </select>
+              {availableVehicles.length > 0 && (
+                <div className="assigned-vehicle-info">
+                  <span>{availableVehicles[0].type.replace(/_/g, ' ').toUpperCase()}</span>
+                  <span> &mdash; {availableVehicles[0].location.toUpperCase()}</span>
+                  <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}> (ID: {availableVehicles[0].id})</span>
+                </div>
+              )}
             </div>
 
             <div className="form-group">
