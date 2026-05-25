@@ -16,6 +16,7 @@ import {
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 5000;
 
+app.set('etag', false);
 app.use(cors());
 app.use(express.json());
 
@@ -57,6 +58,10 @@ const startServer = async (): Promise<void> => {
       const duration = parseInt(durationMins);
       if (isNaN(duration) || duration <= 0) {
         return res.status(400).json({ success: false, message: 'durationMins must be a positive number' });
+      }
+
+      if (moment.utc(startDateTime).isBefore(moment.utc())) {
+        return res.status(400).json({ success: false, message: 'startDateTime must be in the future' });
       }
 
       if (moment.utc(startDateTime).isAfter(moment.utc().add(14, 'days'))) {
@@ -107,6 +112,10 @@ const startServer = async (): Promise<void> => {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(customerEmail)) {
         return res.status(400).json({ success: false, message: 'Invalid email format' });
+      }
+
+      if (moment.utc(startDateTime).isBefore(moment.utc())) {
+        return res.status(400).json({ success: false, message: 'startDateTime must be in the future' });
       }
 
       if (moment.utc(startDateTime).isAfter(moment.utc().add(14, 'days'))) {

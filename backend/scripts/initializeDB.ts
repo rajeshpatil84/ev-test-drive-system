@@ -4,85 +4,87 @@ import Reservation, { IReservation } from '../models/Reservation';
 interface VehicleSeed extends Omit<IVehicle, 'createdAt' | 'updatedAt'> {}
 interface ReservationSeed extends Omit<IReservation, 'notes' | 'createdAt' | 'updatedAt'> {}
 
+const ALL_DAYS = ['mon', 'tue', 'wed', 'thur', 'fri', 'sat', 'sun'];
+
 const vehicles: VehicleSeed[] = [
   // Tesla Model 3 - Dublin (2 units for even distribution)
   {
     id: 'tesla_1001', type: 'tesla_model3', location: 'dublin',
-    availableFromTime: '08:00:00', availableToTime: '18:00:00',
-    availableDays: ['mon', 'tue', 'wed', 'thur', 'fri'],
+    availableFromTime: '08:00:00', availableToTime: '20:00:00',
+    availableDays: ALL_DAYS,
     minimumMinutesBetweenBookings: 15, isActive: true,
   },
   {
     id: 'tesla_1007', type: 'tesla_model3', location: 'dublin',
-    availableFromTime: '08:00:00', availableToTime: '18:00:00',
-    availableDays: ['mon', 'tue', 'wed', 'thur', 'fri'],
+    availableFromTime: '08:00:00', availableToTime: '20:00:00',
+    availableDays: ALL_DAYS,
     minimumMinutesBetweenBookings: 15, isActive: true,
   },
   // Tesla Model X - Dublin
   {
     id: 'tesla_1002', type: 'tesla_modelx', location: 'dublin',
-    availableFromTime: '10:00:00', availableToTime: '20:00:00',
-    availableDays: ['mon', 'tue', 'wed', 'thur', 'fri', 'sat'],
+    availableFromTime: '08:00:00', availableToTime: '20:00:00',
+    availableDays: ALL_DAYS,
     minimumMinutesBetweenBookings: 15, isActive: true,
   },
   // Tesla Model Y - Dublin
   {
     id: 'tesla_1003', type: 'tesla_modely', location: 'dublin',
-    availableFromTime: '10:00:00', availableToTime: '16:00:00',
-    availableDays: ['fri', 'sat', 'sun'],
+    availableFromTime: '08:00:00', availableToTime: '20:00:00',
+    availableDays: ALL_DAYS,
     minimumMinutesBetweenBookings: 15, isActive: true,
   },
   // Tesla Model 3 - Cork (2 units for even distribution)
   {
     id: 'tesla_1004', type: 'tesla_model3', location: 'cork',
-    availableFromTime: '08:00:00', availableToTime: '18:00:00',
-    availableDays: ['mon', 'tue', 'wed', 'thur', 'fri'],
+    availableFromTime: '08:00:00', availableToTime: '20:00:00',
+    availableDays: ALL_DAYS,
     minimumMinutesBetweenBookings: 15, isActive: true,
   },
   {
     id: 'tesla_1008', type: 'tesla_model3', location: 'cork',
-    availableFromTime: '08:00:00', availableToTime: '18:00:00',
-    availableDays: ['mon', 'tue', 'wed', 'thur', 'fri'],
+    availableFromTime: '08:00:00', availableToTime: '20:00:00',
+    availableDays: ALL_DAYS,
     minimumMinutesBetweenBookings: 15, isActive: true,
   },
   // Tesla Model X - Cork
   {
     id: 'tesla_1005', type: 'tesla_modelx', location: 'cork',
-    availableFromTime: '10:00:00', availableToTime: '20:00:00',
-    availableDays: ['mon', 'tue', 'wed', 'thur', 'fri', 'sat'],
+    availableFromTime: '08:00:00', availableToTime: '20:00:00',
+    availableDays: ALL_DAYS,
     minimumMinutesBetweenBookings: 15, isActive: true,
   },
   // Tesla Model Y - Cork
   {
     id: 'tesla_1006', type: 'tesla_modely', location: 'cork',
-    availableFromTime: '10:00:00', availableToTime: '16:00:00',
-    availableDays: ['fri', 'sat', 'sun'],
+    availableFromTime: '08:00:00', availableToTime: '20:00:00',
+    availableDays: ALL_DAYS,
     minimumMinutesBetweenBookings: 15, isActive: true,
   },
   // Volkswagen ID4 - Dublin (2 units for even distribution)
   {
     id: 'vw_2001', type: 'volkswagen_id4', location: 'dublin',
-    availableFromTime: '09:00:00', availableToTime: '18:00:00',
-    availableDays: ['mon', 'tue', 'wed', 'thur', 'fri', 'sat'],
+    availableFromTime: '08:00:00', availableToTime: '20:00:00',
+    availableDays: ALL_DAYS,
     minimumMinutesBetweenBookings: 15, isActive: true,
   },
   {
     id: 'vw_2002', type: 'volkswagen_id4', location: 'dublin',
-    availableFromTime: '09:00:00', availableToTime: '18:00:00',
-    availableDays: ['mon', 'tue', 'wed', 'thur', 'fri', 'sat'],
+    availableFromTime: '08:00:00', availableToTime: '20:00:00',
+    availableDays: ALL_DAYS,
     minimumMinutesBetweenBookings: 15, isActive: true,
   },
   // Volkswagen ID4 - Cork (2 units for even distribution)
   {
     id: 'vw_2003', type: 'volkswagen_id4', location: 'cork',
-    availableFromTime: '09:00:00', availableToTime: '18:00:00',
-    availableDays: ['mon', 'tue', 'wed', 'thur', 'fri', 'sat'],
+    availableFromTime: '08:00:00', availableToTime: '20:00:00',
+    availableDays: ALL_DAYS,
     minimumMinutesBetweenBookings: 15, isActive: true,
   },
   {
     id: 'vw_2004', type: 'volkswagen_id4', location: 'cork',
-    availableFromTime: '09:00:00', availableToTime: '18:00:00',
-    availableDays: ['mon', 'tue', 'wed', 'thur', 'fri', 'sat'],
+    availableFromTime: '08:00:00', availableToTime: '20:00:00',
+    availableDays: ALL_DAYS,
     minimumMinutesBetweenBookings: 15, isActive: true,
   },
 ];
@@ -117,7 +119,7 @@ const sampleReservations: ReservationSeed[] = [
 const initializeDatabase = async (): Promise<void> => {
   console.log('📦 Upserting vehicles...');
   for (const vehicle of vehicles) {
-    await Vehicle.updateOne({ id: vehicle.id }, { $setOnInsert: vehicle }, { upsert: true });
+    await Vehicle.updateOne({ id: vehicle.id }, { $set: vehicle }, { upsert: true });
   }
   console.log(`✅ Vehicles upserted (${vehicles.length} vehicles ensured)`);
 
