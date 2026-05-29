@@ -16,7 +16,7 @@ export interface IVehicle {
 const vehicleSchema = new Schema<IVehicle>(
   {
     id: { type: String, required: true, unique: true, index: true },
-    type: { type: String, required: true, index: true },
+    type: { type: String, required: true, lowercase: true, index: true },
     location: { type: String, required: true, lowercase: true, index: true },
     availableFromTime: { type: String, required: true },
     availableToTime: { type: String, required: true },

@@ -1,8 +1,8 @@
-import moment, { Moment } from 'moment';
+import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
 import { HydratedDocument } from 'mongoose';
 import Vehicle, { IVehicle } from '../models/Vehicle';
-import Reservation, { IReservation } from '../models/Reservation';
+import Reservation from '../models/Reservation';
 
 const DAYS_MAPPING: Record<number, string> = {
   0: 'sun',
@@ -47,18 +47,6 @@ export interface BookingResult {
   reservation?: ReservationSummary;
 }
 
-const hasTimeConflict = (
-  reservation: HydratedDocument<IReservation>,
-  requestStart: Moment,
-  requestEnd: Moment,
-  bufferMins: number
-): boolean => {
-  const resStart = moment.utc(reservation.startDateTime);
-  const resEnd = moment.utc(reservation.endDateTime);
-  const bufferStart = resStart.clone().subtract(bufferMins, 'minutes');
-  const bufferEnd = resEnd.clone().add(bufferMins, 'minutes');
-  return requestStart.isBefore(bufferEnd) && requestEnd.isAfter(bufferStart);
-};
 
 export const getAvailableVehicles = async (
   vehicleType: string,
@@ -71,7 +59,7 @@ export const getAvailableVehicles = async (
   const dayOfWeek = DAYS_MAPPING[startMoment.day()];
 
   const matchingVehicles = await Vehicle.find({
-    type: vehicleType,
+    type: vehicleType.toLowerCase(),
     location: location.toLowerCase(),
     isActive: true,
   });
@@ -90,17 +78,18 @@ export const getAvailableVehicles = async (
 
     if (startMoment.isBefore(availableFrom) || endMoment.isAfter(availableTo)) continue;
 
-    const conflicting = await Reservation.find({
+    const bufferMins = vehicle.minimumMinutesBetweenBookings;
+    const bufferedStart = startMoment.clone().subtract(bufferMins, 'minutes');
+    const bufferedEnd = endMoment.clone().add(bufferMins, 'minutes');
+
+    const conflictCount = await Reservation.countDocuments({
       vehicleId: vehicle.id,
       status: 'confirmed',
-      $or: [{ startDateTime: { $lt: endMoment.toDate() }, endDateTime: { $gt: startMoment.toDate() } }],
+      startDateTime: { $lt: bufferedEnd.toDate() },
+      endDateTime: { $gt: bufferedStart.toDate() },
     });
 
-    const hasConflict = conflicting.some((res) =>
-      hasTimeConflict(res, startMoment, endMoment, vehicle.minimumMinutesBetweenBookings)
-    );
-
-    if (!hasConflict) {
+    if (conflictCount === 0) {
       available.push({ id: vehicle.id, type: vehicle.type, location: vehicle.location });
     }
   }
@@ -140,14 +129,18 @@ export const scheduleTestDrive = async (data: BookingData): Promise<BookingResul
     durationMins
   );
 
-  if (!availableVehicles.find((v) => v.id === vehicleId)) {
+  if (availableVehicles.length === 0) {
     return { success: false, message: 'Vehicle is not available for the requested time slot' };
   }
+
+  // Enforce even distribution: always assign the vehicle with the fewest bookings
+  // regardless of which vehicleId the client submitted
+  const assignedVehicleId = availableVehicles[0].id;
 
   const reservationId = uuidv4();
   const newReservation = new Reservation({
     id: reservationId,
-    vehicleId,
+    vehicleId: assignedVehicleId,
     startDateTime: startMoment.toDate(),
     endDateTime: endMoment.toDate(),
     customerName,
